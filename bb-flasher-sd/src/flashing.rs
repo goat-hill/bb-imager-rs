@@ -1,4 +1,4 @@
-use std::io::{BufWriter, Read, Seek, Write};
+use std::io::{Read, Seek, Write};
 use std::path::Path;
 use std::sync::Weak;
 
@@ -13,12 +13,6 @@ fn read_aligned(mut img: impl Read, buf: &mut [u8]) -> Result<usize> {
 
     while pos != buf.len() {
         let count = img.read(&mut buf[pos..])?;
-        // Need to align to 512 byte boundary for writing to sd card
-        if count == 0 {
-            buf[pos..].fill(0);
-            return Ok(pos);
-        }
-
         pos += count;
     }
 
@@ -32,7 +26,7 @@ fn write_sd(
     mut chan: Option<&mut mpsc::Sender<f32>>,
     cancel: Option<&Weak<()>>,
 ) -> Result<()> {
-    let mut buf = [0u8; 512];
+    let mut buf = vec![0u8; 1024 * 1024]; // Changed to 1MB, adjust as needed, but avoid excessive size
     let mut pos = 0;
 
     // Clippy warning is simply wrong here
@@ -43,9 +37,6 @@ fn write_sd(
         if count == 0 {
             break;
         }
-
-        // Since buf is 512, just write the whole thing since read_aligned will always fill it
-        // fully.
         sd.write_all(&buf)?;
 
         pos += count;
@@ -121,7 +112,7 @@ fn flash_internal(
     write_sd(
         img,
         img_size,
-        BufWriter::new(&mut sd),
+        &mut sd,
         chan.as_mut(),
         cancel.as_ref(),
     )?;
