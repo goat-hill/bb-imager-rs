@@ -16,6 +16,13 @@ fn read_aligned(mut img: impl Read, buf: &mut [u8]) -> Result<usize> {
         pos += count;
     }
 
+    // Ensure buffer is aligned to 512 bytes
+    if pos % 512 != 0 {
+        let padding = 512 - (pos % 512);
+        buf[pos..pos + padding].fill(0);
+        pos += padding;
+    }
+
     Ok(pos)
 }
 
@@ -26,7 +33,7 @@ fn write_sd(
     mut chan: Option<&mut mpsc::Sender<f32>>,
     cancel: Option<&Weak<()>>,
 ) -> Result<()> {
-    let mut buf = vec![0u8; 1024 * 1024]; // Changed to 1MB, adjust as needed, but avoid excessive size
+    let mut buf = vec![0u8; 1024 * 1024]; // 1 MiB buffer
     let mut pos = 0;
 
     // Clippy warning is simply wrong here
@@ -37,7 +44,7 @@ fn write_sd(
         if count == 0 {
             break;
         }
-        sd.write_all(&buf)?;
+        sd.write_all(&buf[..count])?;
 
         pos += count;
         // Clippy warning is simply wrong here
